@@ -2,6 +2,8 @@ package eu.kanade.tachiyomi.extension.ar.mangaswat
 
 import android.widget.Toast
 import androidx.preference.PreferenceScreen
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import eu.kanade.tachiyomi.multisrc.mangathemesia.MangaThemesia
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
@@ -29,7 +31,7 @@ import java.util.Locale
 class MangaSwat :
     MangaThemesia(
         "MangaSwat",
-        "https://swatscans.com",
+        "https://meshmanga.com",
         "ar",
         dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale("ar")),
     ),
@@ -94,56 +96,62 @@ class MangaSwat :
         return storedToken!!
     }
 
+    private val apiUrl = "https://appswat.com/v2/api/v2/" 
+
+    private fun sMangaFromSeriesJson(series: JsonObject): SManga {
+        val manga = SManga.create()
+        
+        manga.title = series["title"].asString
+        
+        val path = series["slug"].asString
+        manga.url = "/series/$path" 
+        
+        manga.thumbnail_url = series["cover"].asString.substringBefore("?")
+        
+        return manga
+    }
+
+    override fun popularMangaRequest(page: Int): Request {
+        return GET("${apiUrl}series/?is_hot=true&page_size=50&page=$page", headers)
+    }
+
+    override fun popularMangaParse(response: Response): MangasPage {
+        val json = response.body?.string().orEmpty()
+        val data = JsonParser.parseString(json).asJsonObject
+        
+        val results = data["results"].asJsonArray
+        
+        val mangas = results.map {
+            sMangaFromSeriesJson(it.asJsonObject)
+        }
+
+        val hasNextPage = data["next"].asString != "null" && data["next"].asString.isNotEmpty()
+
+        return MangasPage(mangas, hasNextPage)
+    }
+
     override fun latestUpdatesRequest(page: Int): Request {
-        val xhrHeaders = headersBuilder()
-            .add("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-            .add("X-Requested-With", "XMLHttpRequest")
-            .build()
-
-        val formBody = FormBody.Builder()
-            .add("action", "more_manga_home")
-            .add("paged", (page - 1).toString())
-            .build()
-
-        return POST("$baseUrl/ajax-request", xhrHeaders, formBody)
+        return GET("${apiUrl}series/releases/?page_size=20&page=$page", headers)
     }
 
     override fun latestUpdatesParse(response: Response): MangasPage {
-        return json
-            .decodeFromString<MoreMangaHomeDto>(response.body.string())
-            .html.toResponseBody("text/html".toMediaType())
-            .let { response.newBuilder().body(it).build() }
-            .let { super.latestUpdatesParse(it) }
-            .let { page ->
-                MangasPage(
-                    mangas = page.mangas,
-                    hasNextPage = page.mangas.size >= 24, // info not present
-                )
-            }
+        val json = response.body?.string().orEmpty()
+        val data = JsonParser.parseString(json).asJsonObject
+
+        val results = data["results"].asJsonArray
+
+        val mangas = results.map {
+            val release = it.asJsonObject
+            sMangaFromSeriesJson(release["series"].asJsonObject)
+        }
+
+        val hasNextPage = data["next"].asString != "null" && data["next"].asString.isNotEmpty()
+
+        return MangasPage(mangas, hasNextPage)
     }
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val request = super.searchMangaRequest(page, query, filters)
-        val urlBuilder = request.url.newBuilder()
-
-        // remove trailing slash
-        if (request.url.pathSegments.last().isBlank()) {
-            urlBuilder.removePathSegment(
-                request.url.pathSegments.lastIndex,
-            )
-        }
-
-        if (query.isNotBlank()) {
-            urlBuilder
-                .removePathSegment(0)
-                .removeAllQueryParameters("title")
-                .addQueryParameter("s", query)
-                .build()
-        }
-
-        return request.newBuilder()
-            .url(urlBuilder.build())
-            .build()
+        return GET("${apiUrl}series/?search=$query&page_size=50&page=$page", headers)
     }
 
     override val orderByFilterOptions = arrayOf(
