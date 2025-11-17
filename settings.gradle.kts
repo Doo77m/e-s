@@ -10,6 +10,7 @@ loadIndividualExtension("ar", "mangaswat")
 include(":core")
 include("lib-multisrc:mangathemesia")
 include("lib:i18n")
+include(":lib-json")
 
 // Load all modules under /lib
 // File(rootDir, "lib").eachDir { include("lib:${it.name}") }
