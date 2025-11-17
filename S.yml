@@ -32,14 +32,5 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
 
-    - name: Build MangaSwat Extension Only 
-      # يتم تعديل الأمر ليقوم بتجميع امتداد MangaSwat فقط
-      run: ./gradlew :src:ar:mangaswat:assembledebug 
-
-    # بما أننا نجمع موديول واحد فقط، فمن الأفضل حذف خطوة "Publish to GitHub Packages"
-    # إذا كنت لا تنوي نشر الامتداد بهذا الأمر
-    # - name: Publish to GitHub Packages
-    #   run: ./gradlew publish
-    #   env:
-    #     USERNAME: ${{ github.actor }}
-    #     TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Build
+      run: ./gradlew assembleDebug
