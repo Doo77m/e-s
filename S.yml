@@ -34,7 +34,7 @@ jobs:
 
     - name: Build MangaSwat Extension Only 
       # يتم تعديل الأمر ليقوم بتجميع امتداد MangaSwat فقط
-      run: ./gradlew :src:ar:mangaswat:assembleRelease 
+      run: ./gradlew :src:ar:mangaswat:assembledebug 
 
     # بما أننا نجمع موديول واحد فقط، فمن الأفضل حذف خطوة "Publish to GitHub Packages"
     # إذا كنت لا تنوي نشر الامتداد بهذا الأمر
