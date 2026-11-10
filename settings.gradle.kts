@@ -31,9 +31,9 @@ rootProject.name = "Keiyoushi"
 /**
  * Add or remove modules to load as needed for local development here.
  */
-loadAllIndividualExtensions()
+// loadAllIndividualExtensions()
 // loadIndividualExtension("all", "mangadex")
-
+loadIndividualExtension("en", "asurascans")
 /**
  * ===================================== COMMON CONFIGURATION ======================================
  */
