@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Rect
+import androidx.preference.EditTextPreference
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.source.ConfigurableSource
@@ -35,6 +36,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import okhttp3.Headers
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -78,6 +80,8 @@ abstract class AsuraScans :
             edit().remove("pref_force_high_quality").apply()
         }
     }
+
+    override fun Headers.Builder.configureHeaders() = set("User-Agent", preferences.userAgent())
 
     override fun OkHttpClient.Builder.configureClient() = apply {
         addInterceptor(::scrambledImageInterceptor)
@@ -187,7 +191,7 @@ abstract class AsuraScans :
                     ?: return@mapNotNull null
 
                 SManga.create().apply {
-                    url = "/series/${slug.replace(URL_RANDOM_PART, "")}"
+                    url = "/series/${slug.replace(URL_RANDOM_PART, "")}" 
                     memo = buildJsonObject {
                         put("slug", slug)
                     }
@@ -363,6 +367,13 @@ abstract class AsuraScans :
     }
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        EditTextPreference(screen.context).apply {
+            key = PREF_USER_AGENT
+            title = "User-Agent"
+            summary = "User-Agent header sent with requests"
+            setDefaultValue(DEFAULT_USER_AGENT)
+        }.let(screen::addPreference)
+
         SwitchPreferenceCompat(screen.context).apply {
             key = PREF_HIDE_PREMIUM_CHAPTERS
             title = "Hide premium chapters"
@@ -370,6 +381,11 @@ abstract class AsuraScans :
             setDefaultValue(true)
         }.let(screen::addPreference)
     }
+
+    private fun SharedPreferences.userAgent(): String = getString(
+        PREF_USER_AGENT,
+        DEFAULT_USER_AGENT,
+    )?.takeIf { it.isNotBlank() } ?: DEFAULT_USER_AGENT
 
     private fun SharedPreferences.hidePremiumChapters(): Boolean = getBoolean(
         PREF_HIDE_PREMIUM_CHAPTERS,
@@ -405,6 +421,8 @@ abstract class AsuraScans :
 private const val PER_PAGE_LIMIT = 20
 private val OLD_FORMAT_MANGA_REGEX = """^/manga/(\d+-)?([^/]+)/?$""".toRegex()
 private const val PREF_HIDE_PREMIUM_CHAPTERS = "pref_hide_premium_chapters"
+private const val PREF_USER_AGENT = "pref_user_agent"
+private const val DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 private const val SLUG_MAP = "slug_map_v2"
 private val PAGE_TOKEN_REGEX = Regex("""pageToken\*=\*"([^"]+)"""")
 private val URL_RANDOM_PART = Regex("""-[a-z0-9]{8}$""")
