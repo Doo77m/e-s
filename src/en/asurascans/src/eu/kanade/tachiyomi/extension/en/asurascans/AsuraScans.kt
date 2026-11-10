@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Rect
+import androidx.preference.EditTextPreference
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.source.ConfigurableSource
@@ -80,6 +81,7 @@ abstract class AsuraScans :
     }
 
     override fun OkHttpClient.Builder.configureClient() = apply {
+        addInterceptor(::userAgentInterceptor)
         addInterceptor(::scrambledImageInterceptor)
         rateLimit(2, 2.seconds) { !it.encodedPath.contains("/covers/") }
     }
@@ -187,7 +189,7 @@ abstract class AsuraScans :
                     ?: return@mapNotNull null
 
                 SManga.create().apply {
-                    url = "/series/${slug.replace(URL_RANDOM_PART, "")}"
+                    url = "/series/${slug.replace(URL_RANDOM_PART, "")}" 
                     memo = buildJsonObject {
                         put("slug", slug)
                     }
@@ -314,6 +316,17 @@ abstract class AsuraScans :
         else -> url.trim('/')
     }
 
+    private fun userAgentInterceptor(chain: Interceptor.Chain): Response {
+        val userAgent = preferences.getString(PREF_USER_AGENT, "").orEmpty()
+        val request = chain.request().newBuilder().apply {
+            if (userAgent.isNotBlank()) {
+                header("User-Agent", userAgent)
+            }
+        }.build()
+
+        return chain.proceed(request)
+    }
+
     private fun scrambledImageInterceptor(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val response = chain.proceed(request)
@@ -363,6 +376,14 @@ abstract class AsuraScans :
     }
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        EditTextPreference(screen.context).apply {
+            key = PREF_USER_AGENT
+            title = "User-Agent"
+            summary = "Set a custom User-Agent for requests. Leave blank to use the default."
+            dialogTitle = "User-Agent"
+            setDefaultValue("")
+        }.let(screen::addPreference)
+
         SwitchPreferenceCompat(screen.context).apply {
             key = PREF_HIDE_PREMIUM_CHAPTERS
             title = "Hide premium chapters"
@@ -405,6 +426,7 @@ abstract class AsuraScans :
 private const val PER_PAGE_LIMIT = 20
 private val OLD_FORMAT_MANGA_REGEX = """^/manga/(\d+-)?([^/]+)/?$""".toRegex()
 private const val PREF_HIDE_PREMIUM_CHAPTERS = "pref_hide_premium_chapters"
+private const val PREF_USER_AGENT = "pref_user_agent"
 private const val SLUG_MAP = "slug_map_v2"
 private val PAGE_TOKEN_REGEX = Regex("""pageToken\*=\*"([^"]+)"""")
 private val URL_RANDOM_PART = Regex("""-[a-z0-9]{8}$""")
